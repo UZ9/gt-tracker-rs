@@ -1,4 +1,4 @@
-use crate::{oscar_scraper::get_course_name, Season};
+use crate::{oscar_scraper::get_course_info, Season};
 
 pub struct Course {
     pub crn: String,
@@ -8,8 +8,8 @@ pub struct Course {
 
 impl Course {
     pub fn new(crn: String, season: Season) -> Result<Self, ureq::Error> {
-        log::info!("Creating new CRN: [{}, {}]", crn, season.get_term());
-        let name = match get_course_name(&season, &crn) {
+        log::debug!("Creating new CRN: [{}, {}]", crn, season.get_term());
+        let name = match get_course_info(&season, &crn) {
             Ok(course_name) => course_name,
             Err(e) => return Err(e),
         };
