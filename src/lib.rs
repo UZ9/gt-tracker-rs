@@ -3,7 +3,6 @@ use clap::Parser;
 use course::Course;
 
 mod course;
-mod oscar_scraper;
 
 /*
  * Main CLI usage:
@@ -67,7 +66,7 @@ pub fn run() {
             Ok(course) => course,
             Err(e) => panic!("oopsy daisy {}", e),
         };
-        println!("the course is {}\n", &course.name);
+        println!("the course is {:?}\n", &course);
     }
 }
 
