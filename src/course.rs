@@ -6,12 +6,23 @@ const BASE_URL: &str = "https://oscar.gatech.edu/bprod/bwckschd.p_disp_detail_sc
 
 // Queries for oscar page
 const COURSE_NAME_SELECTOR: &str = "th.ddlabel";
-const PREREQUISITE_SELETOR: &str = "td.dddefault";
+const PREREQUISITE_SELECTOR: &str = "td.dddefault";
 
-fn parse_element<'a>(document: &'a Html, selector_str: &str) -> Option<scraper::ElementRef<'a>> {
+fn parse_element<'a>(
+    document: &'a Html,
+    selector_str: &str,
+) -> Result<scraper::ElementRef<'a>, CourseError> {
     Selector::parse(selector_str)
-        .ok()
-        .and_then(|selector| document.select(&selector).next())
+        .map_err(|_| CourseError::ParseError(format!("Unable to parse selector: {}", selector_str)))
+        .and_then(|selector| {
+            document
+                .select(&selector)
+                .next()
+                .ok_or(CourseError::ParseError(format!(
+                    "Unable to parse element for selector: {}",
+                    selector_str
+                )))
+        })
 }
 
 #[derive(Debug, Clone)]
@@ -30,69 +41,32 @@ struct Enrollment {
     remaining: u32,
 }
 
+#[derive(Debug)]
+enum CourseError {
+    ParseError(String),
+}
+
+impl std::fmt::Display for CourseError {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        match self {
+            CourseError::ParseError(e) => write!(f, "Unable to parse: {}", e),
+        }
+    }
+}
+
+impl std::error::Error for CourseError {}
+
 impl Course {
     pub fn new(crn: String, season: Season) -> Result<Self, Box<dyn std::error::Error>> {
         log::debug!("Creating new CRN: [{}, {}]", crn, season.get_term());
-        let body: String = ureq::get(BASE_URL)
-            .query("term_in", &season.get_term())
-            .query("crn_in", &crn)
-            .call()?
-            .into_string()?;
 
-        let document = Html::parse_document(&body);
+        let document = fetch_document(season, &crn)?;
 
-        let course_name = parse_element(&document, COURSE_NAME_SELECTOR)
-            .unwrap()
+        let course_name = parse_element(&document, COURSE_NAME_SELECTOR)?
             .text()
             .collect::<String>();
 
-        let data_table = parse_element(&document, PREREQUISITE_SELETOR).unwrap();
-
-        let tr_selector = Selector::parse("tbody > tr").unwrap();
-        let mut rows = data_table.select(&tr_selector);
-
-        // Skip first row, as it's just the header names and not actual data
-        rows.next();
-
-        let seat_tr = rows.next().unwrap();
-        let waitlist_seat_tr = rows.next().unwrap();
-
-        let get_row_content = |row: scraper::ElementRef| {
-            let td_selector = Selector::parse("td").unwrap();
-
-            row.select(&td_selector)
-                .map(|td| td.text().collect::<String>())
-                .collect::<Vec<String>>()
-        };
-
-        let class_enrollment_data = get_row_content(seat_tr)
-            .iter()
-            .map(|text| text.parse::<u32>())
-            .collect::<Result<Vec<u32>, _>>()?;
-
-        if class_enrollment_data.len() != 3 {
-            return Err(Box::new(std::io::Error::new(
-                std::io::ErrorKind::InvalidData,
-                "Unable to find expected class enrollment fields",
-            )));
-        }
-
-        let class_enrollment = Enrollment {
-            capacity: class_enrollment_data[0],
-            actual: class_enrollment_data[1],
-            remaining: class_enrollment_data[2],
-        };
-
-        let waitlist_enrollment_data = get_row_content(waitlist_seat_tr)
-            .iter()
-            .map(|text| text.parse::<u32>())
-            .collect::<Result<Vec<u32>, _>>()?;
-
-        let waitlist_enrollment = Enrollment {
-            capacity: waitlist_enrollment_data[0],
-            actual: waitlist_enrollment_data[1],
-            remaining: waitlist_enrollment_data[2],
-        };
+        let (class_enrollment, waitlist_enrollment) = parse_enrollment(document)?;
 
         Ok(Self {
             crn,
@@ -102,4 +76,58 @@ impl Course {
             waitlist_enrollment,
         })
     }
+}
+
+fn get_row_content(row: scraper::ElementRef) -> Vec<String> {
+    let td_selector = Selector::parse("td").unwrap();
+
+    row.select(&td_selector)
+        .map(|td| td.text().collect::<String>())
+        .collect::<Vec<String>>()
+}
+
+fn parse_enrollment_data(data: Vec<String>) -> Result<Enrollment, CourseError> {
+    let parsed_numbers: Result<Vec<u32>, _> = data.iter().map(|text| text.parse::<u32>()).collect();
+    let parsed_numbers = parsed_numbers
+        .map_err(|_| CourseError::ParseError("Unable to parse enrollment data".to_string()))?;
+    if parsed_numbers.len() != 3 {
+        return Err(CourseError::ParseError(
+            "Expected 3 items within table row while parsing enrollment data".to_string(),
+        ));
+    }
+
+    Ok(Enrollment {
+        capacity: parsed_numbers[0],
+        actual: parsed_numbers[1],
+        remaining: parsed_numbers[2],
+    })
+}
+
+fn parse_enrollment(
+    document: Html,
+) -> Result<(Enrollment, Enrollment), Box<dyn std::error::Error>> {
+    let data_table = parse_element(&document, PREREQUISITE_SELECTOR)?;
+    let tr_selector = Selector::parse("tbody > tr").unwrap();
+    let mut rows = data_table.select(&tr_selector);
+    rows.next();
+    let seat_tr = rows.next().ok_or(CourseError::ParseError(
+        "Unable to parse seat enrollment tr".to_string(),
+    ))?;
+    let waitlist_seat_tr = rows.next().ok_or(CourseError::ParseError(
+        "Unable to parse waitlist seat enrollment tr".to_string(),
+    ))?;
+
+    let class_enrollment = parse_enrollment_data(get_row_content(seat_tr))?;
+    let waitlist_enrollment = parse_enrollment_data(get_row_content(waitlist_seat_tr))?;
+    Ok((class_enrollment, waitlist_enrollment))
+}
+
+fn fetch_document(season: Season, crn: &String) -> Result<Html, Box<dyn std::error::Error>> {
+    let body: String = ureq::get(BASE_URL)
+        .query("term_in", &season.get_term())
+        .query("crn_in", crn)
+        .call()?
+        .into_string()?;
+
+    Ok(Html::parse_document(&body))
 }
