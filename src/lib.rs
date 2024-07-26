@@ -4,6 +4,9 @@ use course::Course;
 
 mod course;
 
+// Length of the CRN identifier for a class, e.g. 239485
+const CRN_LENGTH: usize = 6;
+
 /*
  * Main CLI usage:
  * python src/tracker.py [SEASON] CRN-1 CRN-2 ..
@@ -62,9 +65,13 @@ pub fn run() {
     env_logger::init();
 
     for crn in args.crns {
+        if crn.len() != CRN_LENGTH {
+            panic!("CRN length must be length {}", CRN_LENGTH);
+        }
+
         let course = match Course::new(crn.to_string(), args.season) {
             Ok(course) => course,
-            Err(e) => panic!("oopsy daisy {}", e),
+            Err(e) => panic!("{}", e),
         };
         println!("the course is {:?}\n", &course);
     }
