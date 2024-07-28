@@ -27,18 +27,57 @@ fn parse_element<'a>(
 
 #[derive(Debug, Clone)]
 pub struct Course {
-    pub crn: String,
-    pub season: Season,
-    pub name: String,
-    pub class_enrollment: Enrollment,
-    pub waitlist_enrollment: Enrollment,
+    crn: String,
+    season: Season,
+    name: String,
+    class_enrollment: Enrollment,
+    waitlist_enrollment: Enrollment,
 }
 
-#[derive(Debug, Clone)]
-struct Enrollment {
+impl Course {
+    pub fn crn(&self) -> &String {
+        &self.crn
+    }
+
+    pub fn season(&self) -> &Season {
+        &self.season
+    }
+
+    pub fn name(&self) -> &String {
+        &self.name
+    }
+
+    pub fn class_enrollment(&self) -> &Enrollment {
+        &self.class_enrollment
+    }
+
+    pub fn waitlist_enrollment(&self) -> &Enrollment {
+        &self.waitlist_enrollment
+    }
+
+    // TODO: Avoid using clone
+    pub fn ref_array(&self) -> [String; 5] {
+        [
+            self.name.clone(),
+            self.crn.clone(),
+            self.class_enrollment.capacity.to_string(),
+            self.class_enrollment.actual.to_string(),
+            self.class_enrollment.remaining.to_string(),
+        ]
+    }
+}
+
+#[derive(Debug, Clone, Default)]
+pub struct Enrollment {
     capacity: u32,
     actual: u32,
     remaining: u32,
+}
+
+impl Enrollment {
+    pub fn remaining(&self) -> u32 {
+        self.remaining
+    }
 }
 
 #[derive(Debug)]

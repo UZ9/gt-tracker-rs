@@ -1,16 +1,14 @@
+use kdam::tqdm;
+use std::fmt::Display;
+
 use chrono::prelude::*;
 use clap::Parser;
 use course::Course;
-
-mod course;
-
 // Length of the CRN identifier for a class, e.g. 239485
 const CRN_LENGTH: usize = 6;
 
-/*
- * Main CLI usage:
- * python src/tracker.py [SEASON] CRN-1 CRN-2 ..
- */
+pub mod course;
+
 #[derive(Parser, Debug)]
 struct Args {
     /// The semester to watch classes for
@@ -60,21 +58,25 @@ impl Season {
     }
 }
 
-pub fn run() {
+impl Display for Season {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Season::Fall => write!(f, "Fall"),
+            Season::Spring => write!(f, "Spring"),
+            Season::Summer => write!(f, "Summer"),
+        }
+    }
+}
+
+pub fn get_input_courses() -> Vec<course::Course> {
     let args = Args::parse();
     env_logger::init();
 
-    for crn in args.crns {
-        if crn.len() != CRN_LENGTH {
-            panic!("CRN length must be length {}", CRN_LENGTH);
-        }
+    let crns: Vec<Course> = tqdm!(args.crns.into_iter())
+        .map(|crn| Course::new(crn.to_string(), args.season).unwrap())
+        .collect();
 
-        let course = match Course::new(crn.to_string(), args.season) {
-            Ok(course) => course,
-            Err(e) => panic!("{}", e),
-        };
-        println!("the course is {:?}\n", &course);
-    }
+    crns
 }
 
 #[cfg(test)]
