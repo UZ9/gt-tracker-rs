@@ -1,4 +1,4 @@
-use std::{io, usize};
+use std::io;
 
 mod tui;
 
@@ -168,7 +168,7 @@ fn render_table(frame: &mut Frame, app: &mut App, area: Rect) {
         let item = data.ref_array();
 
         Row::new(item.iter().map(|content| {
-            let color = determine_color(&data);
+            let color = determine_color(data);
             let text = Text::from(format!("\n{content}\n"));
 
             Cell::from(text).style(Style::new().fg(color))

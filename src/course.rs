@@ -161,7 +161,7 @@ fn parse_enrollment(
     Ok((class_enrollment, waitlist_enrollment))
 }
 
-fn fetch_document(season: Season, crn: &String) -> Result<Html, Box<dyn std::error::Error>> {
+fn fetch_document(season: Season, crn: &str) -> Result<Html, Box<dyn std::error::Error>> {
     let body: String = ureq::get(BASE_URL)
         .query("term_in", &season.get_term())
         .query("crn_in", crn)

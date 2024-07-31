@@ -30,9 +30,9 @@ pub enum Season {
 impl Season {
     pub fn get_id(&self) -> i32 {
         match self {
-            Season::Fall => 08,
-            Season::Spring => 02,
-            Season::Summer => 05,
+            Season::Fall => 8,
+            Season::Spring => 2,
+            Season::Summer => 5,
         }
     }
 
