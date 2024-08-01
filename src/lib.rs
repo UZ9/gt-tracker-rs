@@ -12,7 +12,7 @@ pub mod course;
 #[derive(Parser, Debug)]
 struct Args {
     /// The semester to watch classes for
-    #[arg(short, long, required = true)]
+    #[arg(short, long, default_value_t=Season::Fall)]
     season: Season,
 
     /// A list of class CRNs to filter through
@@ -70,6 +70,13 @@ impl Display for Season {
 
 pub fn get_input_courses() -> Vec<course::Course> {
     let args = Args::parse();
+
+    for crn in args.crns.iter() {
+        if crn.len() != CRN_LENGTH {
+            panic!("Invalid CRN: {crn}");
+        }
+    }
+
     env_logger::init();
 
     let crns: Vec<Course> = tqdm!(args.crns.into_iter())

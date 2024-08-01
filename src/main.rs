@@ -153,7 +153,7 @@ fn determine_color(data: &Course) -> style::Color {
         _ => style::Color::Green,
     };
 }
-//
+
 fn render_table(frame: &mut Frame, app: &mut App, area: Rect) {
     let header_style = Style::default();
 
