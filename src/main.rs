@@ -16,7 +16,6 @@ pub struct App {
     state: TableState,
     courses: Vec<Course>,
     longest_item_lens: (u16, u16, u16, u16, u16),
-    scroll_state: ScrollbarState,
     exit: bool,
 }
 
@@ -26,7 +25,6 @@ impl App {
     fn new(courses: Vec<Course>) -> Self {
         Self {
             state: TableState::default().with_selected(0),
-            scroll_state: ScrollbarState::new((courses.len() - 1) * ITEM_HEIGHT),
             longest_item_lens: constraint_len_calculator(&courses),
             courses,
             exit: false,
@@ -47,7 +45,6 @@ impl App {
         };
 
         self.state.select(Some(i));
-        self.scroll_state = self.scroll_state.position(i * ITEM_HEIGHT);
     }
 
     pub fn previous(&mut self) {
@@ -65,7 +62,6 @@ impl App {
         };
 
         self.state.select(Some(i));
-        self.scroll_state = self.scroll_state.position(i * ITEM_HEIGHT);
     }
 
     pub fn run(&mut self, terminal: &mut tui::Tui) -> io::Result<()> {
@@ -119,8 +115,6 @@ fn ui(frame: &mut Frame, app: &mut App) {
 
     render_table(frame, app, rects[0]);
 
-    render_scrollbar(frame, app, rects[0]);
-
     render_footer(frame, app, rects[1]);
 }
 
@@ -133,24 +127,10 @@ fn render_footer(frame: &mut Frame, _: &mut App, area: Rect) {
     frame.render_widget(info_footer, area);
 }
 
-fn render_scrollbar(frame: &mut Frame, app: &mut App, area: Rect) {
-    frame.render_stateful_widget(
-        Scrollbar::default()
-            .orientation(ScrollbarOrientation::VerticalRight)
-            .begin_symbol(None)
-            .end_symbol(None),
-        area.inner(Margin {
-            vertical: 1,
-            horizontal: 1,
-        }),
-        &mut app.scroll_state,
-    );
-}
-
 fn determine_color(data: &Course) -> style::Color {
     return match data.class_enrollment().remaining() {
-        0 => style::Color::Red,
-        _ => style::Color::Green,
+        0 => style::Color::LightRed,
+        _ => style::Color::LightGreen,
     };
 }
 
@@ -173,7 +153,7 @@ fn render_table(frame: &mut Frame, app: &mut App, area: Rect) {
 
             Cell::from(text).style(Style::new().fg(color))
         }))
-        .height(4)
+        .height(2)
     });
 
     let bar = " ║ ";

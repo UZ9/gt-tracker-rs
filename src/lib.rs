@@ -5,14 +5,14 @@ use chrono::prelude::*;
 use clap::Parser;
 use course::Course;
 // Length of the CRN identifier for a class, e.g. 239485
-const CRN_LENGTH: usize = 6;
+const CRN_LENGTH: usize = 5;
 
 pub mod course;
 
 #[derive(Parser, Debug)]
 struct Args {
     /// The semester to watch classes for
-    #[arg(short, long, default_value_t=Season::Fall)]
+    #[arg(short, long, value_enum, default_value_t=Season::Fall)]
     season: Season,
 
     /// A list of class CRNs to filter through
@@ -71,15 +71,17 @@ impl Display for Season {
 pub fn get_input_courses() -> Vec<course::Course> {
     let args = Args::parse();
 
-    for crn in args.crns.iter() {
-        if crn.len() != CRN_LENGTH {
-            panic!("Invalid CRN: {crn}");
-        }
-    }
-
     env_logger::init();
 
     let crns: Vec<Course> = tqdm!(args.crns.into_iter())
+        .map(|crn| {
+            let parsed_crn = crn.replace(',', "");
+            if parsed_crn.len() != CRN_LENGTH {
+                panic!("Invalid CRN: {parsed_crn}")
+            }
+
+            parsed_crn
+        })
         .map(|crn| Course::new(crn.to_string(), args.season).unwrap())
         .collect();
 
