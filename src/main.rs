@@ -19,7 +19,7 @@ pub struct App {
     exit: bool,
 }
 
-const ITEM_HEIGHT: usize = 4;
+const ITEM_HEIGHT: u16 = 2;
 
 impl App {
     fn new(courses: Vec<Course>) -> Self {
@@ -153,7 +153,7 @@ fn render_table(frame: &mut Frame, app: &mut App, area: Rect) {
 
             Cell::from(text).style(Style::new().fg(color))
         }))
-        .height(2)
+        .height(ITEM_HEIGHT)
     });
 
     let bar = " ║ ";
